@@ -53,7 +53,8 @@ done:
 
 	addi $sp, $sp, 4
 	
-	# 8. Return 0 from main using jr (do not use the 'exit' syscall).	add $v0, $0, $0
+	# 8. Return 0 from main using jr (do not use the 'exit' syscall).
+	add $v0, $0, $0
 	jr $ra
 
 do_math:
@@ -146,5 +147,7 @@ do_div:
 	sub_op: .byte '-'
 	mul_op: .byte '*'
 	div_op: .byte '/'
-	invalid_op: .ascii "Error: invalid arithmetic operation"
+
+	# TODO: fix invalid op output string so that there is no dot before the invalid operator
+	invalid_op: .ascii "Error: invalid arithmetic operation "
 	end_invalid_op: .ascii "'."
