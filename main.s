@@ -59,40 +59,127 @@ done:
 
 do_math:
 # TODO: make sure $a0, $a1 and $a2 aren't being overwritten before they're used
-    addi $sp, $sp, -4
-
+    addi $sp, $sp, -36
+    sw $s0, -32($sp)
+    sw $s1, -28($sp)
+    sw $s2, -24($sp)
+    sw $s3, -20($sp)
+    sw $s4, -16($sp)
+    sw $s5, -12($sp)
+    sw $s6, -8($sp)
+    sw $s7, -4($sp)
     sw $ra, 0($sp)
 
-    lb $t0, add_op
-    lb $t1, sub_op
-    lb $t2, mul_op
-    lb $t3, div_op
+    move $s0, $a0
+    move $s1, $a1
+    move $s2, $a2
+    lb $s3, add_op
+    lb $s4, sub_op
+    lb $s5, mul_op
+    lb $s6, div_op
 
     # The do_math function takes as argument three registers and does the following:
 
+#check_op0:
     # 1. If the operator register contains '+', call do_add passing the two integers in
     # registers and receiving the return values in two registers.
-    bne $t0, $a1, check_op2
+
+    bne $s3, $s1, check_op2
     jal do_add
-    j show_result
+    move $t0, $v0    #move result into $t0
+
+    #PRINT RESULT
+    li $v0, 1
+    move $a0, $s0    #print X
+    syscall
+    li $v0, 11
+    lb $a0, add_op    #print +
+    syscall
+    li $v0, 1
+    move $a0, $s2    #print Y
+    syscall
+    li $v0, 11 
+    lb $a0, equal_sign    #print =
+    syscall
+    li $v0, 1
+    move $a0, $t0    #print result
+    syscall
+    j finish_do_math
+
 check_op2:
     # 2. Otherwise, if the operator register contains '-', call do_subtract passing the
     # two integers in registers and receiving the return values in two registers.
-    bne $t1, $a1, check_op3
+    
+    bne $s4, $s1, check_op3
     jal do_sub
-    j show_result
+    move $t0, $v0    #move result into $t0
+    
+    #PRINT RESULT
+    li $v0, 1
+    move $a0, $s0    #print X
+    syscall
+    li $v0, 11
+    lb $a0, sub_op    #print +
+    syscall
+    li $v0, 1
+    move $a0, $s2    #print Y
+    syscall
+    li $v0, 11 
+    lb $a0, equal_sign    #print =
+    syscall
+    li $v0, 1
+    move $a0, $t0    #print result
+    syscall
+    j finish_do_math
+
 check_op3:
     # 3. Otherwise, if the operator register contains '*', call do_multiply passing
     # the two integers in registers and receiving the return values in two registers.
-    bne $t2, $a1, check_op4
+    bne $s5, $s1, check_op4
     jal do_mul
-    j show_result
+    
+    #PRINT RESULT
+    li $v0, 1
+    move $a0, $s0    #print X
+    syscall
+    li $v0, 11
+    lb $a0, sub_op    #print *
+    syscall
+    li $v0, 1
+    move $a0, $s2    #print Y
+    syscall
+    li $v0, 11 
+    lb $a0, equal_sign    #print =
+    syscall
+    li $v0, 1
+    move $a0, $t0    #print result
+    syscall
+    j finish_do_math
+
 check_op4:
     # 4. Otherwise, if the operator register contains '/', call do_divide passing the
     # two integers in registers and receiving the return values in two registers.
-    bne $t3, $a1, default
+    bne $s6, $s1, default
     jal do_div
-    j show_result
+
+    #PRINT RESULT
+    li $v0, 1
+    move $a0, $s0    #print X
+    syscall
+    li $v0, 11
+    lb $a0, sub_op    #print /
+    syscall
+    li $v0, 1
+    move $a0, $s2    #print Y
+    syscall
+    li $v0, 11 
+    lb $a0, equal_sign    #print =
+    syscall
+    li $v0, 1
+    move $a0, $t0    #print result
+    syscall
+    j finish_do_math
+
 default:
     # 5. Otherwise, print the following error message, replacing OP with the character
     # stored in the operator register, and exit the program.
@@ -124,19 +211,26 @@ show_result:
     # least significant 32-bits of the product.
 
 #print result
-    li $v0, 4
-    la $a0, result
-    syscall
+#    li $v0, 4
+#    la $a0, result
+#    syscall
 
 #print value
-    lw $a0, 0($t7)
-    li $v0, 1
-    syscall
+#    lw $a0, 0($t7)
+#    li $v0, 1
+#    syscall
 
 finish_do_math:
+    lw $s0, -32($sp)
+    lw $s1, -28($sp)
+    lw $s2, -24($sp)
+    lw $s3, -20($sp)
+    lw $s4, -16($sp)
+    lw $s5, -12($sp)
+    lw $s6, -8($sp)
+    lw $s7, -4($sp)
     lw $ra, 0($sp)
-
-    addi $sp, $sp, 4
+    addi $sp, $sp, 36
     jr $ra
 
 #TODO: fill in the arithmetic functions:
@@ -171,8 +265,9 @@ add_op: .byte '+'
 sub_op: .byte '-'
 mul_op: .byte '*'
 div_op: .byte '/'
-
-# TODO: fix invalid op output string so that there is no dot before the invalid operator
+equal_sign: .byte '='
+space: .byte ' '
+	# TODO: fix invalid op output string so that there is no dot before the invalid operator
 invalid_op: .ascii "Error: invalid arithmetic operation "
 end_invalid_op: .ascii "'."
 
