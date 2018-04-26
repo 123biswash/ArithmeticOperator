@@ -85,6 +85,8 @@ do_math:
     # registers and receiving the return values in two registers.
 
     bne $s3, $s1, check_op2
+    move $a0, $s0    #set arguments
+    move $a1, $s2
     jal do_add
     move $t0, $v0    #move result into $t0
 
@@ -240,11 +242,22 @@ do_add:
 #   particular, use the 'or', 'and', 'xor', 'sll', and 'srl' instructions.
 #2. Return the result in a register. If there is an arithmetic overflow, return an
 #   error condition identifying that an overflow occurred in another register.
-    xor $t9, $s0, $s2
-    and $t8, $s0, $s2
-    xor $t7, $t9, $t8
-    bne $t8, $0, case_carry
+
+    #$a0 = addend1
+    #$a1 = addend2
+    #t0 = sum bits
+    #t1 = carry bits
+
+add_loop:
+    xor $t0, $a0, $a1
+    and $t1, $a0, $a1
+    sll $t1, $t1, 1
+    move $a0, $t0
+    move $a1, $t1
+    bne $a1, $0, add_loop
+    move $v0, $a0    #put sum in $v0
     jr $ra
+
 do_sub:
     jr $ra
 do_mul:
