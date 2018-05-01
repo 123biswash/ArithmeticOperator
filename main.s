@@ -259,7 +259,22 @@ add_loop:
     jr $ra
 
 do_sub:
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)
+    
+    lui $t0, 0xffff
+    xor $t0, 0xffff
+    xor $a1, $a1, $t0    #flip all bits to negate second number
+    jal do_add    #add the numbers
+    move $a0, $v0
+    ori $a1, $0, 1
+    jal do_add    #add 1 to finish the 2's complement
+
+    #difference is already in $v0
+    lw $ra, 0($sp) 
+    addi $sp, $sp, 4
     jr $ra
+
 do_mul:
     jr $ra
 do_div:
