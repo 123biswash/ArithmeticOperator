@@ -113,6 +113,8 @@ check_op2:
     # two integers in registers and receiving the return values in two registers.
     
     bne $s4, $s1, check_op3
+    move $a0, $s0    #set arguments
+    move $a1, $s2
     jal do_sub
     move $t0, $v0    #move result into $t0
     
@@ -138,6 +140,8 @@ check_op3:
     # 3. Otherwise, if the operator register contains '*', call do_multiply passing
     # the two integers in registers and receiving the return values in two registers.
     bne $s5, $s1, check_op4
+    move $a0, $s0    #set arguments
+    move $a1, $s2
     jal do_mul
     
     #PRINT RESULT
@@ -162,6 +166,8 @@ check_op4:
     # 4. Otherwise, if the operator register contains '/', call do_divide passing the
     # two integers in registers and receiving the return values in two registers.
     bne $s6, $s1, default
+    move $a0, $s0    #set arguments
+    move $a1, $s2
     jal do_div
 
     #PRINT RESULT
