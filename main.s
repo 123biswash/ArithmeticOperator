@@ -149,7 +149,7 @@ check_op3:
     move $a0, $s0    #print X
     syscall
     li $v0, 11
-    lb $a0, sub_op    #print *
+    lb $a0, mul_op    #print *
     syscall
     li $v0, 1
     move $a0, $s2    #print Y
@@ -175,7 +175,7 @@ check_op4:
     move $a0, $s0    #print X
     syscall
     li $v0, 11
-    lb $a0, sub_op    #print /
+    lb $a0, div_op    #print /
     syscall
     li $v0, 1
     move $a0, $s2    #print Y
@@ -243,7 +243,6 @@ finish_do_math:
 
 #TODO: fill in the arithmetic functions:
 do_add:
-#TODO:
 #1. Add the two integers without using the 'add*' or 'sub*' MIPS instruction. In
 #   particular, use the 'or', 'and', 'xor', 'sll', and 'srl' instructions.
 #2. Return the result in a register. If there is an arithmetic overflow, return an
@@ -283,11 +282,80 @@ do_sub:
 
 do_mul:
     jr $ra
-do_div:
-    jr $ra
 
-case_carry:
-    addi $t7, $t7, 1
+do_div:
+    addi $sp, $sp, -20
+    sw $ra, 0($sp)
+    sw $s0, 4($sp)
+    sw $s1, 8($sp)
+    sw $s2, 12($sp)
+    sw $s3, 16($sp)
+
+    #$a0 = dividend
+    #$a1 = divisor
+    
+    #$s0 = divisor
+    #$s1 = remainder
+    #$s2 = quotient
+    move $s0, $a1
+    move $s1, $zero  #init remainder to zero
+    move $s2, $a0    #init quotient to dividend
+
+    #$s3 = i = 32
+    #i=32; i>0; i--
+
+    li $s3, 32
+do_div_loop:
+    beq $s3, $zero, finish_do_div
+    addi $s3, $s3, -1
+
+    #jointly shift left remainder and quotient
+    #first = s1, second = s2
+    sll $s1, $s1, 1  #shift 1st reg left
+    li $t0, 1
+    sll $t0, $t0, 31
+    and $t0, $s2, $t0  #get first bit of 2nd reg --> $t0
+    srl $t0, $t0, 31
+    or $s1, $s1, $t0  #put that bit in last bit of 1st reg
+    sll $s2, $s2, 1  #shift 2nd reg left
+    
+    #rem = rem - divisor
+    move $a0, $s1
+    move $a1, $s0
+    jal do_sub
+    move $s1, $v0
+
+    #get sign bit of rem
+    li $t0, 1
+    sll $t0, $t0, 31
+    and $t0, $s1, $t0
+    srl $t0, $t0, 31  #unnecessary shift
+
+    beq $t0, $zero, set_quotient_bit
+    #if rem < 0
+      #rem+=divisor    #we don't have to do this add if we save the prev rem
+      move $a0, $s1
+      move $a1, $s2
+      jal do_add
+      move $s1, $v0
+
+      #quo0 = 0
+      ori $s2, $s2, 0  #unnecessary ori since we shifted
+    j do_div_loop
+
+set_quotient_bit:
+    #else
+      #quo0 = 1
+      ori $s2, $s2, 1
+    j do_div_loop
+
+finish_do_div:
+    lw $ra, 0($sp)
+    lw $s0, 4($sp)
+    lw $s1, 8($sp)
+    lw $s2, 12($sp)
+    lw $s3, 16($sp)
+    addi $sp, $sp, 20
     jr $ra
 
 .data
