@@ -301,9 +301,29 @@ do_sub:
     jr $ra
 
 do_mul:
-    #return const for testing purposes
-    li $v0, 89  #lower 32 bits
-    li $v1, 4   #upper 32 bits
+    ##### OPTIMIZED VERSION -- Multiplier = Product
+    #$a0 = multiplicand
+    #$a1 = product(upper 32 bits)
+    #$t0 = product (lower 32 bits)
+    #$t1 = carry bits
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)   #save $ra on the stack
+
+    move $t0, $a1   # $t0 now = lower 32 bits
+    li $a1, 0   #load 0 into upper 32 bits of product
+mult_loop:
+    ori $t3, $a0, 1
+    beq $t3, 1, do_add  #if last bit is 1, add multiplicand to upper half of product
+    srl $t0, $t0, 1     #shift upper and lower 32 bits right
+#   ori $t2, $a1, 1     #get last bit of upper 32 bits and put into $t2
+#   sll $t2, $t2, 31     #shift last bit to most significant bit
+#   or $t0, $t0, $t2    #add msb of $t2 to msb of $t0
+    srl $a1, $a1, 1
+    bne $a1, $0, mult_loop   #if upper 32 bits don't = 0, jump to beginning of function
+    move $a1, $t0   #put lower 32 bits into $a1
+
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4
     jr $ra
 
 do_div:
