@@ -143,6 +143,7 @@ check_op3:
     move $a0, $s0    #set arguments
     move $a1, $s2
     jal do_mul
+    move $t0, $v0    #move result into $t0
     
     #PRINT RESULT
     li $v0, 1
@@ -169,6 +170,7 @@ check_op4:
     move $a0, $s0    #set arguments
     move $a1, $s2
     jal do_div
+    move $t0, $v0    #move result into $t0
 
     #PRINT RESULT
     li $v0, 1
@@ -268,13 +270,15 @@ do_sub:
     sw $ra, 0($sp)
     
     lui $t0, 0xffff
-    xor $t0, 0xffff
+    ori $t0, 0xffff
     xor $a1, $a1, $t0    #flip all bits to negate second number
     jal do_add    #add the numbers
+    
     move $a0, $v0
-    ori $a1, $0, 1
+    ori $a1, $zero, 1
     jal do_add    #add 1 to finish the 2's complement
-
+    #we can conveniently add the 1 here since addition is commutative
+    
     #difference is already in $v0
     lw $ra, 0($sp) 
     addi $sp, $sp, 4
@@ -297,7 +301,7 @@ do_div:
     #$s0 = divisor
     #$s1 = remainder
     #$s2 = quotient
-    move $s0, $a1
+    move $s0, $a1    #divisor
     move $s1, $zero  #init remainder to zero
     move $s2, $a0    #init quotient to dividend
 
@@ -334,13 +338,13 @@ do_div_loop:
     beq $t0, $zero, set_quotient_bit
     #if rem < 0
       #rem+=divisor    #we don't have to do this add if we save the prev rem
-      move $a0, $s1
-      move $a1, $s2
+      move $a0, $s0
+      move $a1, $s1
       jal do_add
       move $s1, $v0
 
       #quo0 = 0
-      ori $s2, $s2, 0  #unnecessary ori since we shifted
+      #ori $s2, $s2, 0  #unnecessary ori since we shifted
     j do_div_loop
 
 set_quotient_bit:
@@ -350,6 +354,8 @@ set_quotient_bit:
     j do_div_loop
 
 finish_do_div:
+    move $v0, $s2  #return quotient
+    move $v1, $s1  #return remainder
     lw $ra, 0($sp)
     lw $s0, 4($sp)
     lw $s1, 8($sp)
