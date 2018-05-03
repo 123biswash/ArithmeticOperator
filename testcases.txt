@@ -1,0 +1,70 @@
+Test do_add:
+	test overflow:
+		2147483647 + 1    #2147483647 is the largest positive 32 bit integer
+		2000000000 + 2000000000
+		-2000000000 + -2000000000
+
+	test negative:
+		-5 + 5
+		-8 + -8
+		13 + -20
+
+	test normal
+		5 + 2
+
+	test null case
+		0 + 0
+		7 + 0
+
+Test do_sub
+	test overflow:
+		-2147483647 - 1
+		-2000000000 - 2000000000
+		2000000000 - -2000000000
+
+	test negative:
+		-5 - 5
+		-8 - -8
+		13 - -20
+
+	test normal case
+		5 - 2
+
+	test null case
+		0 - 0
+		7 - 0
+
+Test do_mul
+	test null case
+		12 * 0
+		0 * 0
+
+	test identity
+		5 * 1
+		1 * 1
+
+	test normal case
+		4 * 5
+
+	test negative
+		-5 * 5
+		-8 * -8
+		13 * -20
+
+
+Test do_div
+	test divide by zero
+		555 / 0
+		0 / 0
+
+	test identity
+		169 / 1
+		1 / 1
+
+	test normal case
+		10 / 2 = 5 remainder 0
+
+	test remainder
+		5 / 2 = 2 remainder 1
+		99999 / 7 = 14285 remainder 4
+
