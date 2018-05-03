@@ -80,7 +80,7 @@ do_math:
 
     # The do_math function takes as argument three registers and does the following:
 
-#check_op0:
+#check_op1:
     # 1. If the operator register contains '+', call do_add passing the two integers in
     # registers and receiving the return values in two registers.
 
@@ -94,14 +94,14 @@ do_math:
     li $v0, 1
     move $a0, $s0    #print X
     syscall
-    li $v0, 11
-    lb $a0, add_op    #print +
+    li $v0, 4
+    la $a0, str_add    #print +
     syscall
     li $v0, 1
     move $a0, $s2    #print Y
     syscall
-    li $v0, 11 
-    lb $a0, equal_sign    #print =
+    li $v0, 4 
+    la $a0, equal_sign    #print =
     syscall
     li $v0, 1
     move $a0, $t0    #print result
@@ -122,14 +122,14 @@ check_op2:
     li $v0, 1
     move $a0, $s0    #print X
     syscall
-    li $v0, 11
-    lb $a0, sub_op    #print +
+    li $v0, 4
+    la $a0, str_sub    #print +
     syscall
     li $v0, 1
     move $a0, $s2    #print Y
     syscall
-    li $v0, 11 
-    lb $a0, equal_sign    #print =
+    li $v0, 4
+    la $a0, equal_sign    #print =
     syscall
     li $v0, 1
     move $a0, $t0    #print result
@@ -143,23 +143,32 @@ check_op3:
     move $a0, $s0    #set arguments
     move $a1, $s2
     jal do_mul
-    move $t0, $v0    #move result into $t0
-    
+    move $t0, $v0    #move lower 32 bits of product into $v0
+    move $t1, $v1    #move upper 32 bits of product into $v1
+
     #PRINT RESULT
     li $v0, 1
     move $a0, $s0    #print X
     syscall
-    li $v0, 11
-    lb $a0, mul_op    #print *
+    li $v0, 4
+    la $a0, str_mul    #print *
     syscall
     li $v0, 1
     move $a0, $s2    #print Y
     syscall
-    li $v0, 11 
-    lb $a0, equal_sign    #print =
+    li $v0, 4 
+    la $a0, equal_sign    #print =
     syscall
+    beq $v1, $zero, print_small_result
     li $v0, 1
-    move $a0, $t0    #print result
+    move $a0, $t1    #print higher 32 bits of result
+    syscall
+    li $v0, 4
+    la $a0, str_big_result
+    syscall
+print_small_result:
+    li $v0, 1
+    move $a0, $t0    #print lower 32 bits of result
     syscall
     j finish_do_math
 
@@ -171,22 +180,29 @@ check_op4:
     move $a1, $s2
     jal do_div
     move $t0, $v0    #move result into $t0
+    move $t1, $v1    #move remainder into $t1
 
     #PRINT RESULT
     li $v0, 1
     move $a0, $s0    #print X
     syscall
-    li $v0, 11
-    lb $a0, div_op    #print /
+    li $v0, 4
+    la $a0, str_div    #print /
     syscall
     li $v0, 1
     move $a0, $s2    #print Y
     syscall
-    li $v0, 11 
-    lb $a0, equal_sign    #print =
+    li $v0, 4
+    la $a0, equal_sign    #print =
     syscall
     li $v0, 1
     move $a0, $t0    #print result
+    syscall
+    li $v0, 4
+    la $a0, str_remainder
+    syscall
+    li $v0, 1
+    move $a0, $t1    #print remainder
     syscall
     j finish_do_math
 
@@ -285,6 +301,9 @@ do_sub:
     jr $ra
 
 do_mul:
+    #return const for testing purposes
+    li $v0, 89  #lower 32 bits
+    li $v1, 4   #upper 32 bits
     jr $ra
 
 do_div:
@@ -368,14 +387,18 @@ finish_do_div:
 enter_int: .asciiz "Please enter an integer: "
 enter_op: .asciiz "Please enter an operator (+, -, *, /): "
 newline: .asciiz "\n"
-result: .asciiz "X op Y = "
 add_op: .byte '+'
 sub_op: .byte '-'
 mul_op: .byte '*'
 div_op: .byte '/'
-equal_sign: .byte '='
-space: .byte ' '
-	# TODO: fix invalid op output string so that there is no dot before the invalid operator
+equal_sign: .asciiz " = "
+str_remainder: .asciiz " remainder "
+str_add: .asciiz " + "
+str_sub: .asciiz " - "
+str_mul: .asciiz " * "
+str_div: .asciiz " / "
+str_big_result: .asciiz " * 4294967296 + "
+# TODO: fix invalid op output string so that there is no dot before the invalid operator
 invalid_op: .ascii "Error: invalid arithmetic operation "
 end_invalid_op: .ascii "'."
 
