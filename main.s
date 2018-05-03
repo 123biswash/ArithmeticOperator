@@ -312,15 +312,25 @@ do_mul:
     move $t0, $a1   # $t0 now = lower 32 bits
     li $a1, 0   #load 0 into upper 32 bits of product
 mult_loop:
-    ori $t3, $a0, 1
-    beq $t3, 1, do_add  #if last bit is 1, add multiplicand to upper half of product
-    srl $t0, $t0, 1     #shift upper and lower 32 bits right
-#   ori $t2, $a1, 1     #get last bit of upper 32 bits and put into $t2
-#   sll $t2, $t2, 31     #shift last bit to most significant bit
-#   or $t0, $t0, $t2    #add msb of $t2 to msb of $t0
-    srl $a1, $a1, 1
+    and $t3, $t0, 1    #get lsb of product
+    
+    #beq $t3, 1, do_add  #if last bit of the product is 1, add multiplicand to upper half of product
+    #let's use jal instead of break in any case since do_add is a function
+    #$a* registers may be getting overwritten so use regular add for now
+
+    bne $t3, 1, do_mul_skip_add
+    add $a1, $a1, $a0
+do_mul_skip_add:
+    #shift right product
+    srl $t0, $t0, 1     #shift right lower 32 bits
+    and $t2, $a1, 1     #get last bit of upper 32 bits and put into $t2
+    sll $t2, $t2, 31    #shift last bit to most significant bit
+    or $t0, $t0, $t2    #move lsb of upper 32 bits to msb of lower 32 bits
+    sra $a1, $a1, 1     #sra for signed mul
     bne $a1, $0, mult_loop   #if upper 32 bits don't = 0, jump to beginning of function
-    move $a1, $t0   #put lower 32 bits into $a1
+
+    move $v0, $t0   #return lower 32 bits in $v0
+    move $v1, $a1   #return upper 32 bits in $v1
 
     lw $ra, 0($sp)
     addi $sp, $sp, 4
