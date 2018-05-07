@@ -58,7 +58,6 @@ done:
     jr $ra
 
 do_math:
-# TODO: make sure $a0, $a1 and $a2 aren't being overwritten before they're used
     addi $sp, $sp, -36
     sw $s0, -32($sp)
     sw $s1, -28($sp)
@@ -119,6 +118,11 @@ check_op2:
     move $t0, $v0    #move result into $t0
     
     #PRINT RESULT
+    # Print the following message:
+    # X OP Y = Z.
+    # Where Z is the arithmetical result of the operation OP conducted on the two
+    # integers input from the user, X and Y.
+
     li $v0, 1
     move $a0, $s0    #print X
     syscall
@@ -147,6 +151,11 @@ check_op3:
     move $t1, $v1    #move lower 32 bits of product into $t1
 
     #PRINT RESULT
+    # If OP is '*' and the most-significant 32-bits of the 64-bit product are nonzero,
+    # you should show the result Z as Z_h * 4294967296 + Z_l where
+    # Z_h is the integer in the most-significant 32-bits and Z_l is the integer in the
+    # least significant 32-bits of the product.
+
     li $v0, 1
     move $a0, $s0    #print X
     syscall
@@ -183,6 +192,9 @@ check_op4:
     move $t1, $v1    #move remainder into $t1
 
     #PRINT RESULT
+    # If OP is '/' you should replace Z with Q remainder R, where Q is the
+    # quotient and R the remainder, for example:
+    # 4 / 3 = 1 remainder 1
     li $v0, 1
     move $a0, $s0    #print X
     syscall
@@ -220,31 +232,6 @@ default:
     la $a0, end_invalid_op
     syscall
     j finish_do_math
-show_result:
-    # TODO:
-    # 6. Print the following message:
-    # X OP Y = Z.
-    # Where Z is the arithmetical result of the operation OP conducted on the two
-    # integers input from the user, X and Y.
-
-    # If OP is '/' you should replace Z with Q remainder R, where Q is the
-    # quotient and R the remainder, for example:
-    # 4 / 3 = 1 remainder 1
-
-    # If OP is '*' and the most-significant 32-bits of the 64-bit product are nonzero,
-    # you should show the result Z as Z_h * 4294967296 + Z_l where
-    # Z_h is the integer in the most-significant 32-bits and Z_l is the integer in the
-    # least significant 32-bits of the product.
-
-#print result
-#    li $v0, 4
-#    la $a0, result
-#    syscall
-
-#print value
-#    lw $a0, 0($t7)
-#    li $v0, 1
-#    syscall
 
 finish_do_math:
     lw $s0, -32($sp)
@@ -259,7 +246,6 @@ finish_do_math:
     addi $sp, $sp, 36
     jr $ra
 
-#TODO: fill in the arithmetic functions:
 do_add:
 #1. Add the two integers without using the 'add*' or 'sub*' MIPS instruction. In
 #   particular, use the 'or', 'and', 'xor', 'sll', and 'srl' instructions.
@@ -295,7 +281,7 @@ add_loop:
     sll $t4, $t4, 31
     and $t4, $t4, $v0    #get msb of sum
 
-    #carry = a'br + ab'r' 
+    #overflow = a'br + ab'r' 
     #    where a, b, r 
     #    = last bits of addend1, addend2, and result respectively
     #a, b, r = t2, t3, t4
@@ -314,9 +300,7 @@ do_sub:
     addi $sp, $sp, -4
     sw $ra, 0($sp)
     
-    lui $t0, 0xffff
-    ori $t0, 0xffff
-    xor $a1, $a1, $t0    #flip all bits to negate second number
+    not $a1, $a1    #flip all bits to do 1st step of 2's complement
     jal do_add    #add the numbers
     
     move $a0, $v0
@@ -575,7 +559,7 @@ str_sub: .asciiz " - "
 str_mul: .asciiz " * "
 str_div: .asciiz " / "
 str_big_result: .asciiz " * 4294967296 + "
-# TODO: fix invalid op output string so that there is no dot before the invalid operator
 invalid_op: .ascii "Error: invalid arithmetic operation "
-end_invalid_op: .ascii "'."
+end_invalid_op: .ascii "'"
+
 
