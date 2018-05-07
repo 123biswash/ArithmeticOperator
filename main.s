@@ -143,8 +143,8 @@ check_op3:
     move $a0, $s0    #set arguments
     move $a1, $s2
     jal do_mul
-    move $t0, $v0    #move lower 32 bits of product into $v0
-    move $t1, $v1    #move upper 32 bits of product into $v1
+    move $t0, $v0    #move upper 32 bits of product into $t0
+    move $t1, $v1    #move lower 32 bits of product into $t1
 
     #PRINT RESULT
     li $v0, 1
@@ -159,16 +159,16 @@ check_op3:
     li $v0, 4 
     la $a0, equal_sign    #print =
     syscall
-    beq $v1, $zero, print_small_result
+    beq $t0, $zero, print_small_result    #if the number is small, only print lower bits
     li $v0, 1
-    move $a0, $t1    #print higher 32 bits of result
+    move $a0, $t0    #print higher 32 bits of result
     syscall
     li $v0, 4
     la $a0, str_big_result
     syscall
 print_small_result:
     li $v0, 1
-    move $a0, $t0    #print lower 32 bits of result
+    move $a0, $t1    #print lower 32 bits of result
     syscall
     j finish_do_math
 
@@ -270,6 +270,17 @@ do_add:
     #$a1 = addend2
     #t0 = sum bits
     #t1 = carry bits
+    #t2 = msb of addend1
+    #t3 = msb of addend2
+    #t4 = msb of sum
+    #t5 = term1 of overflow eq
+    #t6 = term2 of overflow eq
+
+    li $t2, 1
+    sll $t2, $t2, 31
+    move $t3, $t2    #copy 1<<31 from t2 into t3
+    and $t2, $t2, $a0    #get msb
+    and $t3, $t3, $a1    #get msb
 
 add_loop:
     xor $t0, $a0, $a1
@@ -279,6 +290,24 @@ add_loop:
     move $a1, $t1
     bne $a1, $0, add_loop
     move $v0, $a0    #put sum in $v0
+
+    li $t4, 1
+    sll $t4, $t4, 31
+    and $t4, $t4, $v0    #get msb of sum
+
+    #carry = a'br + ab'r' 
+    #    where a, b, r 
+    #    = last bits of addend1, addend2, and result respectively
+    #a, b, r = t2, t3, t4
+    and $t5, $t3, $t4    #do part of 1st term
+    move $t6, $t2    #do part of 2nd term
+    not $t2, $t2
+    not $t3, $t3
+    not $t4, $t4
+    and $t5, $t5, $t2    #do rest of 1st term
+    and $t6, $t6, $t3    #finish 2nd term    
+    and $t6, $t6, $t4
+    or $v1, $t5, $t6    #return overflow in v1
     jr $ra
 
 do_sub:
@@ -301,39 +330,77 @@ do_sub:
     jr $ra
 
 do_mul:
-    ##### OPTIMIZED VERSION -- Multiplier = Product
-    #$a0 = multiplicand
-    #$a1 = product(upper 32 bits)
-    #$t0 = product (lower 32 bits)
-    #$t1 = carry bits
-    addi $sp, $sp, -4
-    sw $ra, 0($sp)   #save $ra on the stack
+    #Grade School Multiplication Algorithm
 
-    move $t0, $a1   # $t0 now = lower 32 bits
-    li $a1, 0   #load 0 into upper 32 bits of product
-mult_loop:
-    and $t3, $t0, 1    #get lsb of product
+    #1a: 1=> Prod = Prod + Mcand
+    #1b: 0 => No operation
+    #2: Shift Left Multiplicand
+    #3: Shift Right Multiplier
     
-    #beq $t3, 1, do_add  #if last bit of the product is 1, add multiplicand to upper half of product
-    #let's use jal instead of break in any case since do_add is a function
-    #$a* registers may be getting overwritten so use regular add for now
+    addi $sp, $sp, -28    #7 registers * 4 bytes per word
+    sw $ra, 0($sp)
+    sw $s0, 4($sp)
+    sw $s1, 8($sp)
+    sw $s2, 12($sp)
+    sw $s3, 16($sp)
+    sw $s4, 20($sp)
+    sw $s5, 24($sp)
 
-    bne $t3, 1, do_mul_skip_add
-    add $a1, $a1, $a0
-do_mul_skip_add:
-    #shift right product
-    srl $t0, $t0, 1     #shift right lower 32 bits
-    and $t2, $a1, 1     #get last bit of upper 32 bits and put into $t2
-    sll $t2, $t2, 31    #shift last bit to most significant bit
-    or $t0, $t0, $t2    #move lsb of upper 32 bits to msb of lower 32 bits
-    sra $a1, $a1, 1     #sra for signed mul
-    bne $a1, $0, mult_loop   #if upper 32 bits don't = 0, jump to beginning of function
+    #$s0 = mplier = $a0
+    #s1 = mcand_high = $0
+    #s2 = mcand_low = $a1
+    #s3 = prod_high = $0
+    #s4 = prod_low = $0
+    #s5 = i = 32
 
-    move $v0, $t0   #return lower 32 bits in $v0
-    move $v1, $a1   #return upper 32 bits in $v1
+    move $s0, $a0
+    move $s1, $0
+    move $s2, $a1
+    move $s3, $0
+    move $s4, $0
+    addi $s5, $0, 32
+
+do_mul_loop:
+    addi $t0, $0, 1
+    and $t0, $t0, $s0    #get last bit of multiplier
+    beq $t0, $0, do_mul_step_1b    #if it's zero, do step 1b, else do step 1a
+
+    #1a: 1=> Prod = Prod + Mcand
+    move $a0, $s1    #first 2 arg registers contain Mcand
+    move $a1, $s2
+    move $a2, $s3    #next 2 arg registers contain Prod
+    move $a3, $s4
+    jal do_add_64_bit
+    move $s3, $v0    #retrieve result from return registers
+    move $s4, $v1
+
+do_mul_step_1b:
+    #1b: 0 => No operation
+    
+    #2: Shift Left Multiplicand
+    move $a0, $s1    #first 2 arg registers contain Mcand
+    move $a1, $s2
+    jal sll_64_bit
+    move $s1, $v0
+    move $s2, $v1
+
+    #3: Shift Right Multiplier
+    srl $s0, $s0, 1
+
+    addi $s5, -1    #i--
+    bgtz $s5, do_mul_loop    #loop while i > 0
+
+    move $v0, $s3    #move product to return registers
+    move $v1, $s4
 
     lw $ra, 0($sp)
-    addi $sp, $sp, 4
+    lw $s0, 4($sp)
+    lw $s1, 8($sp)
+    lw $s2, 12($sp)
+    lw $s3, 16($sp)
+    lw $s4, 20($sp)
+    lw $s5, 24($sp)
+    addi $sp, $sp, 28    #7 registers * 4 bytes per word
     jr $ra
 
 do_div:
@@ -411,6 +478,86 @@ finish_do_div:
     lw $s2, 12($sp)
     lw $s3, 16($sp)
     addi $sp, $sp, 20
+    jr $ra
+
+sll_64_bit:
+    #first = a0, second = a1
+    sll $a0, $a0, 1  #shift 1st reg left
+    li $t0, 1
+    sll $t0, $t0, 31
+    and $t0, $a1, $t0  #get first bit of 2nd reg --> $t0
+    srl $t0, $t0, 31
+    or $a0, $a0, $t0  #put that bit in last bit of 1st reg
+    sll $a1, $a1, 1  #shift 2nd reg left
+    move $v0, $a0
+    move $v1, $a1
+    jr $ra
+
+srl_64_bit:
+    #first = a0, second = a1
+    srl $a1, $a1, 1  #shift 2nd reg right
+    li $t0, 1
+    and $t0, $a0, $t0  #get last bit of 1st reg --> $t0
+    sll $t0, $t0, 31
+    or $a1, $a1, $t0  #put that bit in first bit of 2nd reg
+    srl $a0, $a0, 1  #shift 1st reg right
+    move $v0, $a0
+    move $v1, $a1
+    jr $ra
+
+do_add_64_bit:
+    addi $sp, $sp, -28    #7 registers * 4 bytes per word
+    sw $ra, 0($sp)
+    sw $s0, 4($sp)
+    sw $s1, 8($sp)
+    sw $s2, 12($sp)
+    sw $s3, 16($sp)
+    sw $s4, 20($sp)
+    sw $s5, 24($sp)
+    
+    #s0 = a0 = addend1, higher 32 bits
+    #s1 = a1 = addend1, lower 32 bits
+    #s2 = a2 = addend2, higher 32 bits
+    #s3 = a3 = addend2, lower 32 bits
+    #s4 = sum, higher 32 bits
+    #s5 = sum, lower 32 bits
+
+    move $s0, $a0
+    move $s1, $a1
+    move $s2, $a2
+    move $s3, $a3
+
+    #add higher 32 bits
+    move $a0, $s0
+    move $a1, $s2
+    jal do_add
+    move $s4, $v0
+
+    #add lower 32 bits
+    move $a0, $s1
+    move $a1, $s3
+    jal do_add
+    move $s5, $v0
+    
+    #there's a carry if a sum is less than either addend
+    #let's see if there's a carry from the lower 32 bits
+    bgt $s1, $s5, add_carry_bit    #addend1_lower > sum_lower
+    bgt $s3, $s5, add_carry_bit    #addend2_lower > sum_lower
+    j finish_do_add_64_bit
+add_carry_bit:
+    addi $s4, $s4, 1    #add carry bit to sum, higher 32 bits
+
+finish_do_add_64_bit:
+    move $v0, $s4    #return higher 32 bits
+    move $v1, $s5    #return lower 32 bits
+    lw $ra, 0($sp)
+    lw $s0, 4($sp)
+    lw $s1, 8($sp)
+    lw $s2, 12($sp)
+    lw $s3, 16($sp)
+    lw $s4, 20($sp)
+    lw $s5, 24($sp)
+    addi $sp, $sp, 28    #7 registers * 4 bytes per word
     jr $ra
 
 .data
