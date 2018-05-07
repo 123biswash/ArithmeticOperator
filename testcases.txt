@@ -51,6 +51,8 @@ Test do_mul
 		-8 * -8
 		13 * -20
 
+	test large numbers
+		5 * 1234567890 = 1 * 4294967296 + 1877872154
 
 Test do_div
 	test divide by zero
@@ -67,4 +69,8 @@ Test do_div
 	test remainder
 		5 / 2 = 2 remainder 1
 		99999 / 7 = 14285 remainder 4
+
+Test invalid operator
+	77 @ 88
+	55 $ 99
 
